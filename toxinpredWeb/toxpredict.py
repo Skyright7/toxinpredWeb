@@ -1,28 +1,77 @@
-import argparse
-import warnings
-import pickle
-import os
-import re
-import sys
 import numpy as np
 import pandas as pd
 import joblib
 
+output_path = '../data/outputData'
 
-# result_filename = id
-# "sequence"
+def toxPredictionOne(task_id,base_file_path,Threshold):
+    # Threshold, dplay = 2 id =2
+    data = pd.read_csv(base_file_path,index_col=0)
+    thr = Threshold
+    # acc calculation
+    std = list("ACDEFGHIKLMNPQRSTVWY")
+    # data['ACC'] = None
+    dd = []
+    for j in data['sequence']:
+        cc = []
+        for i in std:
+            count = 0
+            for k in j:
+                temp1 = k
+                if temp1 == i:
+                    count += 1
+                composition = (count/len(j))*100
+            cc.append(composition)
+        dd.append(cc)
+    data['ACC']= dd
 
+    # dpc calculation
+    dd = []
+    zz = data.sequence
+    q = 1
+    for i in range(0, len(zz)):
+        cc = []
+        for j in std:
+            for k in std:
+                count = 0
+                temp = j + k
+                for m3 in range(0, len(zz[i]) - q):
+                    b = zz[i][m3:m3 + q + 1:q]
+                    b.upper()
+                    if b == temp:
+                        count += 1
+                    composition = (count / (len(zz[i]) - (q))) * 100
+                cc.append(composition)
+        dd.append(cc)
+    data['DPC'] = dd
+    # concatenate
+    acc = np.array(data['ACC'].tolist())
+    dpc = np.array(data['DPC'].tolist())
+    X_test = np.concatenate([acc, dpc], axis=1)
+    print(X_test)
+    # # load model
+    clf = joblib.load('../modelWeight/toxinpred3.0_model.pkl')
+    y_p_score1 = clf.predict_proba(X_test)
+    y_p_s1 = y_p_score1.tolist()
+    # data['ML Score'] = y_p_s1
+    tempdf = pd.DataFrame(y_p_s1)
+    df_1 = tempdf.iloc[:, -1]
+    data['tox_score'] = df_1
+    cc = []
+    for i in range(len(data)):
+        if data['tox_score'][i]>=float(thr):
+            cc.append('Toxin')
+        else:
+            cc.append('Non-Toxin')
+    data['tox_prediction'] = cc
+    # tempdf = pd.DataFrame(y_p_s1)
+    data['tox_PPV'] = (data['tox_score'] * 1.2341) - 0.1182
+    data = data.drop(columns=['ACC', 'DPC'])
+    out_file_path = f'{output_path}/id_{task_id}_tox_out.csv'
+    data.to_csv(out_file_path)
+    return out_file_path
 
-def toxPredictionOne(Sequence,result_filename,Threshold,dplay):
-
-    model = 1
-    dplay = 2
-    pass
-
-
-def toxPredictiontwo(Sequence,result_filename,Threshold,dplay):
-    model = 2
-    dplay = 2
-    pass
-
-
+if __name__ == '__main__':
+    base_file_path = '../data/inputData/id_2.csv'
+    out = toxPredictionOne(4,base_file_path,0.5)
+    print(out)
