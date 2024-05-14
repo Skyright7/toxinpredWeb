@@ -2,15 +2,13 @@ import numpy as np
 import pandas as pd
 import joblib
 
-output_path = '../data/outputData'
+output_path = './data/outputData'
 
 def toxPredictionOne(task_id,base_file_path,Threshold):
-    # Threshold, dplay = 2 id =2
     data = pd.read_csv(base_file_path,index_col=0)
     thr = Threshold
     # acc calculation
     std = list("ACDEFGHIKLMNPQRSTVWY")
-    # data['ACC'] = None
     dd = []
     for j in data['sequence']:
         cc = []
@@ -24,7 +22,6 @@ def toxPredictionOne(task_id,base_file_path,Threshold):
             cc.append(composition)
         dd.append(cc)
     data['ACC']= dd
-
     # dpc calculation
     dd = []
     zz = data.sequence
@@ -49,11 +46,12 @@ def toxPredictionOne(task_id,base_file_path,Threshold):
     dpc = np.array(data['DPC'].tolist())
     X_test = np.concatenate([acc, dpc], axis=1)
     print(X_test)
-    # # load model
-    clf = joblib.load('../modelWeight/toxinpred3.0_model.pkl')
+    # load model
+    clf = joblib.load('./modelWeight/toxinpred3.0_model.pkl')
+    # prediction
     y_p_score1 = clf.predict_proba(X_test)
     y_p_s1 = y_p_score1.tolist()
-    # data['ML Score'] = y_p_s1
+    # select last row(toxin) (first row mean un_toxin) as result
     tempdf = pd.DataFrame(y_p_s1)
     df_1 = tempdf.iloc[:, -1]
     data['tox_score'] = df_1
@@ -64,14 +62,16 @@ def toxPredictionOne(task_id,base_file_path,Threshold):
         else:
             cc.append('Non-Toxin')
     data['tox_prediction'] = cc
-    # tempdf = pd.DataFrame(y_p_s1)
+    # calculate PPV
     data['tox_PPV'] = (data['tox_score'] * 1.2341) - 0.1182
+    # drop the ACC and DPC which do not need output
     data = data.drop(columns=['ACC', 'DPC'])
+    # output as file
     out_file_path = f'{output_path}/id_{task_id}_tox_out.csv'
     data.to_csv(out_file_path)
     return out_file_path
 
-if __name__ == '__main__':
-    base_file_path = '../data/inputData/id_2.csv'
-    out = toxPredictionOne(4,base_file_path,0.5)
-    print(out)
+# if __name__ == '__main__':
+#     base_file_path = '../data/inputData/id_2.csv'
+#     out = toxPredictionOne(4,base_file_path,0.5)
+#     print(out)
